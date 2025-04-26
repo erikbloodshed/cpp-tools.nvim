@@ -1,49 +1,86 @@
--- lua/cpp-tools/init.lua
--- Lua module containing core setup logic and user options storage
+-- lua/cpp-tools/config.lua
+-- Non-object-oriented configuration module with filetype-specific options
 
 local M = {}
 
--- Store user options passed during setup. Initialize with an empty table.
-M.user_opts = {}
+-- Default configurations per filetype and common defaults
+local defaults = {
+    c = {
+        compiler = "gcc",
+        default_flags = "-std=c18 -O2",
+        compile_command = nil, -- Allow overriding the entire compile command
+        assemble_command = nil, -- Allow overriding the entire assemble command
+    },
+    cpp = {
+        compiler = "g++",
+        default_flags = "-std=c++23 -O2",
+        compile_command = nil, -- Allow overriding the entire compile command
+        assemble_command = nil, -- Allow overriding the entire assemble command
+    },
+    -- Common options that apply to both unless overridden
+    common = {
+        output_directory = "/tmp/",
+        data_subdirectory = "dat",
+    }
+}
 
---- Internal function to perform the filetype-specific setup.
--- This is called by the autocmd when a C or C++ file is opened.
--- It uses the options stored in M.user_opts.
-function M.setup_filetype()
-    -- Configure Neovim options for C/C++ files
-    vim.opt_local.cinkeys:remove(":")
-    vim.opt_local.cindent = true
+-- Internal table to store the user-provided options
+-- This will be populated by the M.setup function.
+-- User options should be structured like { common = {}, c = {}, cpp = {} }.
+local user_options = {}
 
-    -- Require and setup the non-object-oriented config module
-    local config = require("cpp-tools.config")
-    -- Pass the stored user options to the config setup
-    config.setup(M.user_opts)
-
-    -- Require the build module, passing the config module directly
-    local build = require("cpp-tools.build").new(config)
-
-    -- Define keymaps using the build instance methods
-    -- Use <buffer=true> to make keymaps local to the current buffer
-    local arg = { buffer = true, noremap = true }
-    vim.keymap.set("n", "<leader>rc", function() build:compile() end, arg)
-    vim.keymap.set("n", "<leader>rr", function() build:run() end, arg)
-    vim.keymap.set("n", "<leader>ra", function() build:show_assembly() end, arg)
-    vim.keymap.set("n", "<leader>fa", function() build:add_data_file() end, arg)
-    vim.keymap.set("n", "<leader>fr", function() build:remove_data_file() end, arg)
+--- Sets up the configuration by storing user-provided options.
+-- User options can be structured like { common = {}, c = {}, cpp = {} }.
+-- These options will be merged with defaults when M.get is called.
+-- @param options table | nil: User-provided options to override defaults.
+function M.setup(options)
+    user_options = options or {}
 end
 
---- Sets user options for the cpp-tools plugin.
--- This function should be called by the user in their Neovim configuration
--- if they want to provide custom settings.
--- @param opts table | nil: User-provided options for configuration.
-function M.setup(opts)
-    -- Store the options provided by the user
-    M.user_opts = opts or {}
-    -- Note: The autocmd registration is now in plugin/cpp-tools.lua
-    -- Calling M.setup() only sets the options that the autocmd will use
-    -- when it triggers setup_filetype().
+--- Gets a configuration value by key for the current buffer's filetype.
+-- Merges defaults, common user options, and filetype-specific user options.
+-- @param key string: The key for the configuration value.
+-- @return any: The configuration value for the current filetype, or nil if the key does not exist.
+function M.get(key)
+    local filetype = vim.bo.filetype
+    if filetype ~= 'c' and filetype ~= 'cpp' then
+        -- Return nil if called outside c/cpp buffer (shouldn't happen with autocmd setup)
+        return nil
+    end
+
+    -- Start with defaults for the specific filetype
+    local current_config = vim.tbl_deep_extend('force', {}, defaults[filetype] or {})
+
+    -- Merge common user options if they exist
+    if user_options.common then
+        current_config = vim.tbl_deep_extend('force', current_config, user_options.common)
+    end
+
+    -- Merge filetype-specific user options if they exist
+    if user_options[filetype] then
+        current_config = vim.tbl_deep_extend('force', current_config, user_options[filetype])
+    end
+
+    -- Return the value for the requested key from the merged configuration
+    return current_config[key]
 end
 
--- Return the main module table
+--- Sets a configuration value by key for the current buffer's filetype in the user options.
+-- This allows runtime modification of the configuration, but only affects the user_options table.
+-- The change will persist for subsequent calls to M.get in the same filetype.
+-- @param key string: The key for the configuration value.
+-- @param value any: The value to set.
+function M.set(key, value)
+    local filetype = vim.bo.filetype
+     if filetype ~= 'c' and filetype ~= 'cpp' then
+        return
+    end
+
+    -- Initialize the filetype specific user options table if it doesn't exist
+    user_options[filetype] = user_options[filetype] or {}
+    -- Set the value in the user options for the current filetype
+    user_options[filetype][key] = value
+end
+
+-- Return the module table with setup, get, and set functions
 return M
-
