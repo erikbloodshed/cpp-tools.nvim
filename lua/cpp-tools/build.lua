@@ -21,6 +21,7 @@ function Build.new(config)
     -- Access config values using the get function
     self.compiler = self.config.get("compiler")
     -- Get compile flags from .compile_flags or use default from config
+    -- ENSURE THE FALLBACK IS PASSED HERE
     self.flags = utils.get_compile_flags(".compile_flags", self.config.get("default_flags"))
     -- Construct output file paths
     self.exe_file = self.config.get("output_directory") .. vim.fn.expand("%:t:r")
@@ -28,8 +29,9 @@ function Build.new(config)
     self.infile = vim.api.nvim_buf_get_name(0)
 
     -- Construct compile and assemble commands, allowing overrides from config
+    -- This is where the error was likely occurring if self.flags was nil
     self.compile_cmd = self.config.get("compile_command") or
-        string.format("%s %s -o %s %s", self.compiler, self.flags, self.exe_file, self.infile)
+        string.format("%s %s -o %s %s", self.compiler, self.flags, self.exe_file, self.infile) -- Line 26 in the original build.lua
     self.assemble_cmd = self.config.get("assemble_command") or
         string.format("%s %s -S -o %s %s", self.compiler, self.flags, self.asm_file, self.infile)
 
