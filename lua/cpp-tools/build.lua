@@ -21,19 +21,26 @@ function Build.new(config)
     -- Access config values using the get function
     self.compiler = self.config.get("compiler")
     -- Get compile flags from .compile_flags or use default from config
-    -- ENSURE THE FALLBACK IS PASSED HERE
     self.flags = utils.get_compile_flags(".compile_flags", self.config.get("default_flags"))
     -- Construct output file paths
     self.exe_file = self.config.get("output_directory") .. vim.fn.expand("%:t:r")
     self.asm_file = self.exe_file .. ".s"
     self.infile = vim.api.nvim_buf_get_name(0)
 
+    -- DEBUG PRINT: Check the values right before string.format
+    print("DEBUG: In Build.new:")
+    print("  self.compiler:", self.compiler)
+    print("  self.flags:", self.flags)
+    print("  self.exe_file:", self.exe_file)
+    print("  self.asm_file:", self.asm_file)
+    print("  self.infile:", self.infile)
+
+
     -- Construct compile and assemble commands, allowing overrides from config
-    -- This is where the error was likely occurring if self.flags was nil
     self.compile_cmd = self.config.get("compile_command") or
-        string.format("%s %s -o %s %s", self.compiler, self.flags, self.exe_file, self.infile) -- Line 26 in the original build.lua
+        string.format("%s %s -o %s %s", self.compiler, self.flags, self.exe_file, self.infile)
     self.assemble_cmd = self.config.get("assemble_command") or
-        string.format("%s %s -S -o %s %s", self.compiler, self.flags, self.asm_file, self.infile)
+        string.format("%s %s -S -o %s %s", self.compiler, self.flags, self.asm_file, self.infile) -- Line 27
 
     -- Store hashes to track buffer changes
     self.hash = { compile = nil, assemble = nil }
