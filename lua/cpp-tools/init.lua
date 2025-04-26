@@ -1,86 +1,33 @@
--- lua/cpp-tools/config.lua
--- Non-object-oriented configuration module with filetype-specific options
+-- lua/cpp-tools/init.lua
+-- Lua module for cpp-tools plugin.
+-- Primarily handles storing user configuration options.
 
 local M = {}
 
--- Default configurations per filetype and common defaults
-local defaults = {
-    c = {
-        compiler = "gcc",
-        default_flags = "-std=c18 -O2",
-        compile_command = nil, -- Allow overriding the entire compile command
-        assemble_command = nil, -- Allow overriding the entire assemble command
-    },
-    cpp = {
-        compiler = "g++",
-        default_flags = "-std=c++23 -O2",
-        compile_command = nil, -- Allow overriding the entire compile command
-        assemble_command = nil, -- Allow overriding the entire assemble command
-    },
-    -- Common options that apply to both unless overridden
-    common = {
-        output_directory = "/tmp/",
-        data_subdirectory = "dat",
-    }
-}
+-- Store user options passed during setup. Initialize with an empty table.
+-- This variable is accessed by the autocmd callback in plugin/cpp-tools.lua.
+M.user_opts = {}
 
--- Internal table to store the user-provided options
--- This will be populated by the M.setup function.
--- User options should be structured like { common = {}, c = {}, cpp = {} }.
-local user_options = {}
-
---- Sets up the configuration by storing user-provided options.
--- User options can be structured like { common = {}, c = {}, cpp = {} }.
--- These options will be merged with defaults when M.get is called.
--- @param options table | nil: User-provided options to override defaults.
-function M.setup(options)
-    user_options = options or {}
+--- Sets user options for the cpp-tools plugin.
+-- This function should be called by the user in their Neovim configuration
+-- if they want to provide custom settings.
+-- @param opts table | nil: User-provided options for configuration.
+function M.setup(opts)
+    -- Store the options provided by the user
+    M.user_opts = opts or {}
+    -- The actual setup logic (setting options, keymaps) is triggered
+    -- by the FileType autocmd defined in plugin/cpp-tools.lua,
+    -- which reads from M.user_opts.
 end
 
---- Gets a configuration value by key for the current buffer's filetype.
--- Merges defaults, common user options, and filetype-specific user options.
--- @param key string: The key for the configuration value.
--- @return any: The configuration value for the current filetype, or nil if the key does not exist.
-function M.get(key)
-    local filetype = vim.bo.filetype
-    if filetype ~= 'c' and filetype ~= 'cpp' then
-        -- Return nil if called outside c/cpp buffer (shouldn't happen with autocmd setup)
-        return nil
-    end
+-- Expose the user_opts table so plugin/cpp-tools.lua can access it
+-- and also the setup_filetype function which is called by the autocmd.
+-- Note: setup_filetype is defined in plugin/cpp-tools.lua in the latest approach
+-- to avoid timing issues with lazy loading. The setup function here just stores opts.
+-- We need to ensure the autocmd callback in plugin/cpp-tools.lua correctly
+-- requires this module and accesses M.user_opts.
 
-    -- Start with defaults for the specific filetype
-    local current_config = vim.tbl_deep_extend('force', {}, defaults[filetype] or {})
-
-    -- Merge common user options if they exist
-    if user_options.common then
-        current_config = vim.tbl_deep_extend('force', current_config, user_options.common)
-    end
-
-    -- Merge filetype-specific user options if they exist
-    if user_options[filetype] then
-        current_config = vim.tbl_deep_extend('force', current_config, user_options[filetype])
-    end
-
-    -- Return the value for the requested key from the merged configuration
-    return current_config[key]
-end
-
---- Sets a configuration value by key for the current buffer's filetype in the user options.
--- This allows runtime modification of the configuration, but only affects the user_options table.
--- The change will persist for subsequent calls to M.get in the same filetype.
--- @param key string: The key for the configuration value.
--- @param value any: The value to set.
-function M.set(key, value)
-    local filetype = vim.bo.filetype
-     if filetype ~= 'c' and filetype ~= 'cpp' then
-        return
-    end
-
-    -- Initialize the filetype specific user options table if it doesn't exist
-    user_options[filetype] = user_options[filetype] or {}
-    -- Set the value in the user options for the current filetype
-    user_options[filetype][key] = value
-end
-
--- Return the module table with setup, get, and set functions
+-- The module table is returned implicitly by Lua if M is the last statement.
+-- Explicitly returning M for clarity.
 return M
+

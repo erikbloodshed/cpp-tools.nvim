@@ -43,8 +43,13 @@ end
 -- @return any: The configuration value for the current filetype, or nil if the key does not exist.
 function M.get(key)
     local filetype = vim.bo.filetype
+    -- Return nil or a default common value if not in c/cpp buffer,
+    -- though with the autocmd setup, this function should only be called
+    -- within c/cpp buffers.
     if filetype ~= 'c' and filetype ~= 'cpp' then
-        -- Return nil if called outside c/cpp buffer (shouldn't happen with autocmd setup)
+        -- Consider returning a value from common defaults if applicable,
+        -- or nil if the key is filetype-specific. For now, returning nil
+        -- is consistent with the previous logic.
         return nil
     end
 

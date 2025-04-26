@@ -21,28 +21,20 @@ function Build.new(config)
     -- Access config values using the get function
     self.compiler = self.config.get("compiler")
     -- Get compile flags from .compile_flags or use default from config
-    -- This line assigns self.flags. It should not be nil due to the fallback.
+    -- utils.get_compile_flags should return the fallback if the file isn't found.
     self.flags = utils.get_compile_flags(".compile_flags", self.config.get("default_flags"))
     -- Construct output file paths
+    -- config.get("output_directory") should return a string.
+    -- vim.fn.expand("%:t:r") should return a string (or empty).
     self.exe_file = self.config.get("output_directory") .. vim.fn.expand("%:t:r")
     self.asm_file = self.exe_file .. ".s"
+    -- vim.api.nvim_buf_get_name(0) should return a string (or empty).
     self.infile = vim.api.nvim_buf_get_name(0)
 
-    -- DEBUG PRINT: Check the values right before string.format
-    -- Check the output of :messages for these values.
-    print("DEBUG: In Build.new:")
-    print("  self.compiler:", self.compiler)
-    print("  self.flags:", self.flags)
-    print("  self.exe_file:", self.exe_file)
-    print("  self.asm_file:", self.asm_file)
-    print("  self.infile:", self.infile)
-
-
     -- Construct compile and assemble commands, allowing overrides from config
-    -- The error is occurring in this string.format call (Line 26)
+    -- Ensure all variables here are strings (or convertible to strings).
     self.compile_cmd = self.config.get("compile_command") or
         string.format("%s %s -o %s %s", self.compiler, self.flags, self.exe_file, self.infile)
-    -- The error was previously on this line (Line 27)
     self.assemble_cmd = self.config.get("assemble_command") or
         string.format("%s %s -S -o %s %s", self.compiler, self.flags, self.asm_file, self.infile)
 

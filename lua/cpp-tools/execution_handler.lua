@@ -41,7 +41,13 @@ end
 --- Method to select and add a data file.
 function ExecutionHandler:select_data_file()
     -- Construct the path to the data directory using the config module
-    local base = vim.fn.getcwd() .. "/" .. self.config.get("data_subdirectory")
+    local data_subdir = self.config.get("data_subdirectory")
+    -- Ensure data_subdir is a string before concatenating
+    if type(data_subdir) ~= 'string' then
+         vim.notify("Configuration error: 'data_subdirectory' is not a string.", vim.log.levels.ERROR)
+         return
+    end
+    local base = vim.fn.getcwd() .. "/" .. data_subdir
     -- Scan the directory for files
     local files = utils.scan_dir(base)
     -- Notify and return if no files are found
